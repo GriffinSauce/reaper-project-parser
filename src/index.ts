@@ -1,40 +1,23 @@
+import parseValue from './lib/parseValue';
+
 interface Input {
   projectRawText: string;
 }
 
-interface Values {
-  [key: string]: {
-    rawValue: string;
-  };
+// Intermediate type with parent to walk back up the tree
+interface TreeNode extends OutputNode {
+  children: TreeNode[];
+  parent: TreeNode;
 }
 
-interface OutputNode {
-  tagName: string;
-  tagValue: string;
-  values: Values;
-  children: OutputNode[];
-}
-
-interface Parsed {
-  children: ParsedNode[];
-}
-
-interface ParsedNode extends OutputNode {
-  children: ParsedNode[];
-  parent: ParsedNode;
-}
-
-// TODO: needs to handle lists like RECORD_PATH, probably best to rename to parseStringValue
-// const unwrapStringValue = (rawValue: string): string => rawValue.slice(1, -1);
-
+// Used to parse a line to its components
 const lineRegex = /^(?<whitespace>\s*)(?<tag>[\<\>])?(?<tagName>[a-zA-Z_]*)\s?(?<rawValue>.*)?/;
 
 // Remove parent references to ensure a serialisable structure
-const cleanParents = (node: ParsedNode): OutputNode => {
+const removeParents = (node: TreeNode): OutputNode => {
   const { parent, children, ...rest } = node;
-
   return {
-    children: children.map(cleanParents),
+    children: children.map(removeParents),
     ...rest,
   };
 };
@@ -42,11 +25,18 @@ const cleanParents = (node: ParsedNode): OutputNode => {
 const parseProject = ({ projectRawText }: Input) => {
   const lines = projectRawText.split('\n');
 
-  const parsed: Parsed = {
+  // Tree starting at root node that will be discarded in the output
+  const root = {
     children: [],
   };
+  const parsed = (root as unknown) as TreeNode;
+
+  // The currently processing node
+  let node: TreeNode = parsed;
+
+  // Track indent of current node
   let currentIndent = 0;
-  let node: ParsedNode = parsed as ParsedNode;
+
   lines.forEach((line, index) => {
     if (!line) return;
 
@@ -64,7 +54,9 @@ const parseProject = ({ projectRawText }: Input) => {
       const parent = node;
       node = {
         tagName,
-        tagValue: rawValue,
+        tagValue: {
+          rawValue,
+        },
         values: {},
         children: [],
         parent,
@@ -81,21 +73,18 @@ const parseProject = ({ projectRawText }: Input) => {
       return;
     }
 
-    // This feels brittle
+    // This feels brittle to check only by indent
     // TODO: Save raw line on parent node and compare indent directly without tracking it
     // TODO: Is this even necessary? Try removing the check altogether
     const isValue = whitespace.length === currentIndent;
     if (isValue) {
-      node.values[tagName] = {
-        rawValue,
-      };
+      node.values[tagName] = parseValue(rawValue);
     }
   });
 
   const project = parsed.children[0];
-  const output = cleanParents(project);
 
-  return output;
+  return removeParents(project);
 };
 
 export default parseProject;
