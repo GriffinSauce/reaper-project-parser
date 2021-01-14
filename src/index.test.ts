@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+
 import parseProject from '.';
 
 const loadFixture = (fileName: string): string =>
@@ -18,7 +19,8 @@ describe('parse a project with content', () => {
 
   it('matches the snapshot', () => {
     const projectRawText = loadFixture('with-external-files.rpp');
-    expect(parseProject({ projectRawText })).toMatchSnapshot();
+    const output = parseProject({ projectRawText });
+    expect(output).toMatchSnapshot();
   });
 });
 

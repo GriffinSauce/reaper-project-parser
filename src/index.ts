@@ -1,3 +1,5 @@
+import { OutputNode } from './types';
+import parseLine from './lib/parseLine';
 import parseValue from './lib/parseValue';
 
 interface Input {
@@ -9,9 +11,6 @@ interface TreeNode extends OutputNode {
   children: TreeNode[];
   parent: TreeNode;
 }
-
-// Used to parse a line to its components
-const lineRegex = /^(?<whitespace>\s*)(?<tag>[\<\>])?(?<tagName>[a-zA-Z_]*)\s?(?<rawValue>.*)?/;
 
 // Remove parent references to ensure a serialisable structure
 const removeParents = (node: TreeNode): OutputNode => {
@@ -34,30 +33,27 @@ const parseProject = ({ projectRawText }: Input) => {
   // The currently processing node
   let node: TreeNode = parsed;
 
-  // Track indent of current node
-  let currentIndent = 0;
-
   lines.forEach((line, index) => {
     if (!line) return;
 
-    const match = lineRegex.exec(line);
-    if (!match || !match.groups) {
-      throw new Error(`Failed parsing line ${index}`);
+    let parsedLine;
+    try {
+      parsedLine = parseLine(line);
+    } catch (err) {
+      throw new Error(`Failed parsing line ${index} - ${err.message}`);
     }
+    const { bracket, key, rawValue, encoding } = parsedLine;
 
-    const { whitespace, tag, tagName, rawValue } = match.groups;
-
-    const isOpenTag = tag === '<';
+    const isOpenTag = bracket === '<';
     if (isOpenTag) {
-      currentIndent += 2;
-
       const parent = node;
       node = {
-        tagName,
+        key,
         tagValue: {
+          key,
           rawValue,
         },
-        values: {},
+        values: [],
         children: [],
         parent,
       };
@@ -66,20 +62,18 @@ const parseProject = ({ projectRawText }: Input) => {
       return;
     }
 
-    const isCloseTag = tag === '>';
+    const isCloseTag = bracket === '>';
     if (isCloseTag) {
       node = node.parent;
-      currentIndent -= 2;
       return;
     }
 
-    // This feels brittle to check only by indent
-    // TODO: Save raw line on parent node and compare indent directly without tracking it
-    // TODO: Is this even necessary? Try removing the check altogether
-    const isValue = whitespace.length === currentIndent;
-    if (isValue) {
-      node.values[tagName] = parseValue(rawValue);
-    }
+    const parsedValue = parseValue({
+      key: key,
+      rawValue,
+      encoding,
+    });
+    node.values.push(parsedValue);
   });
 
   const project = parsed.children[0];
