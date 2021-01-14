@@ -13,10 +13,15 @@ Features:
 
 TODO for MVP:
 
-- Parse values
+- Parse values correctly
+- Determine best output format
 - Release to NPM
 
-If any feature is missing please [create an issue](https://github.com/GriffinSauce/reaper-project-parser/issues)
+**WARNING:**
+
+This library currently does not parse node values correctly yet and may have other errors and deficiencies, the output format _will_ change. Use at your own risk until v1.0.
+
+If any feature is missing or you have other ideas, please [create an issue](https://github.com/GriffinSauce/reaper-project-parser/issues)!
 
 ## Development
 
