@@ -21,3 +21,19 @@ describe('parse a project with content', () => {
     expect(parseProject({ projectRawText })).toMatchSnapshot();
   });
 });
+
+describe('serialisable output', () => {
+  it('generates serialisable output', () => {
+    const projectRawText = loadFixture('with-external-files.rpp');
+    const output = parseProject({ projectRawText });
+    expect(() => {
+      JSON.stringify(output, null, 2);
+    }).not.toThrow();
+  });
+
+  it('matches the serialised JSON snapshot', () => {
+    const projectRawText = loadFixture('with-external-files.rpp');
+    const output = parseProject({ projectRawText });
+    expect(JSON.stringify(output, null, 2)).toMatchSnapshot();
+  });
+});
