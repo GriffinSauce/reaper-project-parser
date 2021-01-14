@@ -16,9 +16,7 @@ interface OutputNode {
 }
 
 interface Parsed {
-  root: {
-    children: ParsedNode[];
-  };
+  children: ParsedNode[];
 }
 
 interface ParsedNode extends OutputNode {
@@ -31,16 +29,24 @@ interface ParsedNode extends OutputNode {
 
 const lineRegex = /^(?<whitespace>\s*)(?<tag>[\<\>])?(?<tagName>[a-zA-Z_]*)\s?(?<rawValue>.*)?/;
 
+// Remove parent references to ensure a serialisable structure
+const cleanParents = (node: ParsedNode): OutputNode => {
+  const { parent, children, ...rest } = node;
+
+  return {
+    children: children.map(cleanParents),
+    ...rest,
+  };
+};
+
 const parseProject = ({ projectRawText }: Input) => {
   const lines = projectRawText.split('\n');
 
   const parsed: Parsed = {
-    root: {
-      children: [],
-    },
+    children: [],
   };
   let currentIndent = 0;
-  let node: ParsedNode = parsed.root as ParsedNode;
+  let node: ParsedNode = parsed as ParsedNode;
   lines.forEach((line, index) => {
     if (!line) return;
 
@@ -86,20 +92,10 @@ const parseProject = ({ projectRawText }: Input) => {
     }
   });
 
-  const cleanParents = (node: ParsedNode): OutputNode => {
-    const { parent, children, ...rest } = node;
-
-    return {
-      children: children.map(cleanParents),
-      ...rest,
-    };
-  };
-  const project = parsed.root.children[0];
+  const project = parsed.children[0];
   const output = cleanParents(project);
 
-  console.log('project', JSON.stringify(output, null, 2));
-
-  return parsed;
+  return output;
 };
 
 export default parseProject;
